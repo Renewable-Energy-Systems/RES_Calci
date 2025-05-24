@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
-/// Screen that converts Dew‑Point ⇄ ppm H₂O at a given pressure (bar).
+/// Dew-Point ⇄ ppm H₂O converter (pressure in bar) with refreshed UI.
 class PpmConverterScreen extends StatefulWidget {
   const PpmConverterScreen({super.key});
 
@@ -17,20 +17,15 @@ class _PpmConverterScreenState extends State<PpmConverterScreen> {
   final _pController = TextEditingController(text: '1.0');
   Mode _mode = Mode.dewToPpm;
 
-  // Magnus–Tetens saturation pressure (tC in °C) -> Pa
+  // Magnus–Tetens saturation pressure (tC °C) → Pa
   double _pSat(double tC) {
-    const a = 6.1078; // hPa
-    const b = 7.5;
-    const c = 237.3; // °C
-    final pHpa = a * math.pow(10.0, b * tC / (c + tC));
-    return pHpa * 100.0;
+    const a = 6.1078, b = 7.5, c = 237.3;
+    return a * math.pow(10.0, b * tC / (c + tC)) * 100.0;
   }
 
-  // Inverse Magnus: p (Pa) -> dew‑point °C
+  // Inverse Magnus: p (Pa) → dew-point °C
   double _dewFromPH2O(double p) {
-    const a = 6.1078 * 100; // Pa
-    const b = 7.5;
-    const c = 237.3;
+    const a = 6.1078 * 100, b = 7.5, c = 237.3;
     final y = math.log(p / a) / math.ln10; // log10
     return (c * y) / (b - y);
   }
@@ -38,20 +33,17 @@ class _PpmConverterScreenState extends State<PpmConverterScreen> {
   void _convert() {
     final pBar = double.tryParse(_pController.text.trim());
     if (pBar == null || pBar <= 0) {
-      _snack('Pressure must be > 0');
-      return;
+      return _snack('Pressure must be > 0');
     }
     if (_mode == Mode.dewToPpm) {
       final tC = double.tryParse(_dewController.text.trim());
-      if (tC == null) return _snack('Enter dew‑point');
-      final pH2O = _pSat(tC);
-      final ppm = 1e6 * pH2O / (pBar * 1e5);
+      if (tC == null) return _snack('Enter dew-point');
+      final ppm = 1e6 * _pSat(tC) / (pBar * 1e5);
       _ppmController.text = ppm.toStringAsFixed(0);
     } else {
       final ppmVal = double.tryParse(_ppmController.text.trim());
       if (ppmVal == null) return _snack('Enter ppm value');
-      final pH2O = ppmVal * pBar * 1e5 / 1e6;
-      final tC = _dewFromPH2O(pH2O);
+      final tC = _dewFromPH2O(ppmVal * pBar * 1e5 / 1e6);
       _dewController.text = tC.toStringAsFixed(1);
     }
   }
@@ -61,17 +53,24 @@ class _PpmConverterScreenState extends State<PpmConverterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const accent = Color(0xFF00BCD4);
+    final accent = Theme.of(context).colorScheme.secondary;
+
+    InputDecoration deco(String label) => InputDecoration(
+      labelText: label,
+      filled: true,
+      fillColor: const Color(0xFF303030),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+    );
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dew‑Point ⇄ ppm H₂O'),
+        title: const Text('Dew-Point ⇄ ppm H₂O'),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ToggleButtons(
               isSelected: [_mode == Mode.dewToPpm, _mode == Mode.ppmToDew],
@@ -79,59 +78,76 @@ class _PpmConverterScreenState extends State<PpmConverterScreen> {
                   (i) => setState(
                     () => _mode = i == 0 ? Mode.dewToPpm : Mode.ppmToDew,
                   ),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(10),
               selectedColor: Colors.black,
               fillColor: accent,
+              color: Colors.white,
               children: const [
                 Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12),
-                  child: Text('Dew‑point → ppm'),
+                  padding: EdgeInsets.symmetric(horizontal: 14),
+                  child: Text('Dew-point → ppm'),
                 ),
                 Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12),
-                  child: Text('ppm → Dew‑point'),
+                  padding: EdgeInsets.symmetric(horizontal: 14),
+                  child: Text('ppm → Dew-point'),
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 26),
             TextField(
               controller: _dewController,
               enabled: _mode == Mode.dewToPpm,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Dew‑point [°C]'),
+              decoration: deco('Dew-point [°C]'),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             TextField(
               controller: _ppmController,
               enabled: _mode == Mode.ppmToDew,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Water‑vapour [ppm(v)]',
-              ),
+              decoration: deco('Water-vapour [ppm(v)]'),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             TextField(
               controller: _pController,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Total pressure [bar]',
+              decoration: deco('Total pressure [bar]'),
+            ),
+            const SizedBox(height: 28),
+            InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: _convert,
+              child: Ink(
+                decoration: BoxDecoration(
+                  color: accent,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: accent.withOpacity(0.4),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 18, horizontal: 40),
+                  child: Text(
+                    'Convert',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
+                    ),
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 24),
-            Center(
-              child: ElevatedButton(
-                onPressed: _convert,
-                child: const Text('Convert'),
-              ),
-            ),
-            const SizedBox(height: 36),
-            Center(
-              child: Text(
-                'Design & Developed by Pranay Kiran with ❤',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: Colors.grey),
-              ),
+            const SizedBox(height: 40),
+            Text(
+              'Design & Developed by Pranay Kiran with ❤',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Colors.grey),
             ),
           ],
         ),

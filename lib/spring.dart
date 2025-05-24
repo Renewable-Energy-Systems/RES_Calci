@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
-/// Screen that computes the spring rate *k* (N/m) and optional force F at
-/// a given extra deflection. Mirrors the formula used in spring_gui.py.
+/// Spring rate *k* (N/m) and force *F* calculator – dark Material look.
 class SpringCalculatorScreen extends StatefulWidget {
   const SpringCalculatorScreen({super.key});
 
@@ -11,46 +10,47 @@ class SpringCalculatorScreen extends StatefulWidget {
 }
 
 class _SpringCalculatorScreenState extends State<SpringCalculatorScreen> {
-  final _dController = TextEditingController(); // wire Ø mm
-  final _IDController = TextEditingController(); // inner Ø mm
-  final _nController = TextEditingController(); // active coils
-  final _GController = TextEditingController(text: '77'); // G GPa
-  final _deflController = TextEditingController(); // deflection mm
+  final _dCtrl = TextEditingController(); // wire Ø mm
+  final _idCtrl = TextEditingController(); // inner Ø mm
+  final _nCtrl = TextEditingController(); // active coils
+  final _gCtrl = TextEditingController(text: '77'); // G GPa
+  final _deflCtrl = TextEditingController(); // deflection mm
 
-  String _kResult = '– –';
-  String _fResult = '– –';
+  String _kRes = '– –';
+  String _fRes = '– –';
 
   void _calculate() {
     try {
-      final dMm = double.parse(_dController.text.trim());
-      final idMm = double.parse(_IDController.text.trim());
-      final n = double.parse(_nController.text.trim());
-      final gGPa = double.parse(_GController.text.trim());
+      final dMm = double.parse(_dCtrl.text.trim());
+      final idMm = double.parse(_idCtrl.text.trim());
+      final n = double.parse(_nCtrl.text.trim());
+      final gGPa = double.parse(_gCtrl.text.trim());
       final deflMm =
-          _deflController.text.trim().isEmpty
+          _deflCtrl.text.trim().isEmpty
               ? 0.0
-              : double.parse(_deflController.text.trim());
+              : double.parse(_deflCtrl.text.trim());
 
       if (dMm <= 0 || idMm < 0 || n <= 0 || gGPa <= 0) {
-        return _snack('Inputs must be positive (ID ≥ 0).');
+        return _snack('Inputs must be positive (ID ≥ 0)');
       }
 
-      final d = dMm / 1e3; // m
-      final id = idMm / 1e3; // m
-      final g = gGPa * 1e9; // Pa
-      final dMean = id + d; // m
-
+      final d = dMm / 1e3;
+      final id = idMm / 1e3;
+      final g = gGPa * 1e9;
+      final dMean = id + d;
       final k = g * math.pow(d, 4) / (8 * math.pow(dMean, 3) * n);
-      setState(() => _kResult = k.toStringAsFixed(2) + ' N/m');
 
-      if (deflMm > 0) {
-        final f = k * (deflMm / 1e3);
-        setState(() => _fResult = f.toStringAsFixed(2) + ' N');
-      } else {
-        setState(() => _fResult = '– –');
-      }
-    } catch (e) {
-      _snack('Please enter valid numeric values.');
+      setState(() {
+        _kRes = '${k.toStringAsFixed(2)} N/m';
+        if (deflMm > 0) {
+          final f = k * (deflMm / 1e3);
+          _fRes = '${f.toStringAsFixed(2)} N';
+        } else {
+          _fRes = '– –';
+        }
+      });
+    } catch (_) {
+      _snack('Please enter valid numeric values');
     }
   }
 
@@ -59,7 +59,35 @@ class _SpringCalculatorScreenState extends State<SpringCalculatorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const accent = Color(0xFF00BCD4);
+    final accent = Theme.of(context).colorScheme.secondary;
+
+    InputDecoration deco(String label) => InputDecoration(
+      labelText: label,
+      filled: true,
+      fillColor: const Color(0xFF303030),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+    );
+
+    Widget field(String label, TextEditingController c) => Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextField(
+        controller: c,
+        keyboardType: TextInputType.number,
+        decoration: deco(label),
+      ),
+    );
+
+    Widget result(String lbl, String val) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(lbl, style: const TextStyle(fontSize: 16)),
+          Text(val, style: TextStyle(fontSize: 18, color: accent)),
+        ],
+      ),
+    );
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Spring Rate / Force Calculator'),
@@ -67,26 +95,47 @@ class _SpringCalculatorScreenState extends State<SpringCalculatorScreen> {
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            _field(label: 'Wire Ø d [mm]', controller: _dController),
-            _field(label: 'Inner Ø ID [mm]', controller: _IDController),
-            _field(label: 'Active coils n', controller: _nController),
-            _field(label: 'Shear modulus G [GPa]', controller: _GController),
-            _field(
-              label: 'Extra deflection Δ [mm] (optional)',
-              controller: _deflController,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _calculate,
-              child: const Text('Calculate'),
+            field('Wire Ø d [mm]', _dCtrl),
+            field('Inner Ø ID [mm]', _idCtrl),
+            field('Active coils n', _nCtrl),
+            field('Shear modulus G [GPa]', _gCtrl),
+            field('Extra deflection Δ [mm] (optional)', _deflCtrl),
+            const SizedBox(height: 26),
+            InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: _calculate,
+              child: Ink(
+                decoration: BoxDecoration(
+                  color: accent,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: accent.withOpacity(0.4),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 18, horizontal: 40),
+                  child: Text(
+                    'Calculate',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
+                    ),
+                  ),
+                ),
+              ),
             ),
             const SizedBox(height: 32),
-            _resultRow('Spring rate k', _kResult, accent),
-            _resultRow('Force F', _fResult, accent),
-            const SizedBox(height: 36),
+            result('Spring rate k', _kRes),
+            result('Force F', _fRes),
+            const SizedBox(height: 40),
             Text(
               'Design & Developed by Pranay Kiran with ❤',
               style: Theme.of(
@@ -98,27 +147,4 @@ class _SpringCalculatorScreenState extends State<SpringCalculatorScreen> {
       ),
     );
   }
-
-  Widget _field({
-    required String label,
-    required TextEditingController controller,
-  }) => Padding(
-    padding: const EdgeInsets.only(bottom: 12),
-    child: TextField(
-      controller: controller,
-      keyboardType: TextInputType.number,
-      decoration: InputDecoration(labelText: label),
-    ),
-  );
-
-  Widget _resultRow(String label, String value, Color accent) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 16)),
-        Text(value, style: TextStyle(fontSize: 18, color: accent)),
-      ],
-    ),
-  );
 }
